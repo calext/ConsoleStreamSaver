@@ -1,2 +1,35 @@
 # ConsoleStreamSaver
-A browser console script that listens to a video element's media stream and saves it locally as a downloadable file. Paste it in, run a few commands, and capture exactly what's playing.
+Capture and save media streams directly from any <video> element using your browser's dev console. No extensions, no backend — just paste and run.
+
+## Features
+- 🎥 Capture any video element's stream
+- 💾 Save recordings directly from browser console
+- 🔄 Maintains playback when tab loses focus
+- 📦 Stores chunks in IndexedDB for persistence
+- 🧹 Cleanup function to release resources
+
+## Quick Start
+1. Open dev console (F12)
+2. Copy and paste the script
+3. Run `initialize(videoElement, "my-recording-Name")`
+4. call `destroy()` when done
+
+## Usage
+
+### Basic example
+```javascript
+
+// Get the video element
+const video= document.querySelector("video");
+
+// Set video name or use h1 text content
+const videoID= document.querySelector("h1").textContent || "my video id";
+
+// Start capturing
+const controller= initialize(video, videoID);
+
+// ... let it record ...
+
+// cleanup when the video reaches the end
+controller.destroy();
+```
