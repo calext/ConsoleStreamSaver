@@ -143,3 +143,150 @@ async function deleteRecording(id) {
     tx.onabort = () => reject(tx.error);
   });
 }
+
+/**
+ * Starts captuuring a video element's stream and returns a cleanup controller.
+ * 
+ * @param {HTMLVideoElement} video 
+ * @param {MediaStream} stream 
+ * @param {String} id 
+ * @returns {{stop: ()=> void}} object with stop method to end capture and clean up
+ */
+
+function startSmartListener(video, stream, id) {
+  const recorder = new MediaRecorder(stream, {
+    mimeType: "video/webm"
+  });
+
+  let chunks = [];
+  let lastSavedTime = 0;
+
+  recorder.ondataavailable = (event) => {
+    if (event.data.size > 0) {
+      chunks.push(event.data);
+    }
+  };
+
+  recorder.start(60000); // get chunk every 60 seconds
+
+  async function handleTimeUpdate() {
+    const currentTime = video.currentTime;
+
+    // Only trigger when actual playback advanced by 60s
+    if (currentTime - lastSavedTime >= 60) {
+      lastSavedTime = currentTime;
+
+      if (chunks.length === 0) return;
+
+      const blob = new Blob(chunks, { type: "video/webm" });
+      chunks = [];
+
+      await appendChunk({
+        id,
+        chunk: blob,
+        currentTime
+      });
+
+      console.log("Saved at playback time:", currentTime);
+    }
+  }
+  video.addEventListener("timeupdate", handleTimeUpdate);
+
+  return {
+    stop: () => {
+      recorder.stop();
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+    }
+  };
+}
+
+/**
+ * Ensures the video keeps playing even if the tab or window loses focus
+ * 
+ * @param {HTMLVideoElement} video 
+ * @returns {{destroyPlaybackPermanence: ()=> void}} Returns a cleanup function
+ */
+function maintainVideoPlaybackPermanence(video){
+  function ensurePermanence(params) {
+    if(document.hidden){
+      //tab is in background
+      video.play().catch(()=>{});
+    }else{
+      //tab is active again
+      video.play().catch(()=>{});
+    }
+  }
+  function handleWindowBlur(e){
+    video.play().catch(()=>{})
+  }
+  document.addEventListener("visibilitychange", ensurePermanence)
+  window.addEventListener("blur", handleWindowBlur);
+  return{
+    destroyPlaybackPermanence: ()=>{
+      document.removeEventListener("visibilitychange", ensurePermanence)
+      window.removeEventListener("blur", handleWindowBlur)
+    }
+  }
+}
+
+/**
+ * Takes the video element, string id and calls the startSmartListener function to start recording stream
+ * stops recording when the video ends
+ * 
+ * @param {HTMLVideoElement} video 
+ * @param {String} id 
+ * @returns {{destroy: ()=> void}} Returns a cleanup function
+ * 
+ * @example
+ * const video = document.querySelector(".player");
+ * const id= document.querySelector("h1").textContent;
+ * const controller= await initialize(video, id)
+ * //later...
+ * controller.destroy()
+ */
+async function initialize(video, id) {
+  // 1. mute
+  video.muted = true;
+
+  // 2. ensure inline playback (important on mobile)
+  video.setAttribute("playsinline", "");
+
+  //take playbackRate to 4.0. ====> Not a good idea
+  // video.playbackRate="4.0";
+
+  //maintain playback even when tab loses focus
+  const permanence= maintainVideoPlaybackPermanence(video);
+
+  // 3. start playback
+  try {
+    await video.play(); 
+  } catch (e) {
+    console.log("Playback blocked");
+  }
+
+  // 4. capture stream
+  const stream = video.captureStream();
+
+  // 5. start recording logic
+  const controller = startSmartListener(video, stream, id);
+
+  // Attach ended listener here
+  const onEnded = () => {
+    console.log("Video ended");
+
+    if (controller && typeof controller.stop === "function") {
+      controller.stop();
+    }
+  };
+
+  video.addEventListener("ended", onEnded);
+
+  // Optional: expose cleanup
+  return {
+    destroy: () => {
+      video.removeEventListener("ended", onEnded);
+      permanence.destroyPlaybackPermanence()
+      controller.stop();
+    }
+  };
+}
