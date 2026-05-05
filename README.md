@@ -13,6 +13,8 @@ Capture and save media streams directly from any <video> element using your brow
 2. Copy and paste the script
 3. Run `initialize(videoElement, "my-recording-Name")`
 4. call `destroy()` when done
+5. Run `saveRecordingAsVideoFile("my-recording-Name", <optional_filename>)` to save recording into a video file
+6. call `deleteRecording("my-recording-Name")` to delete the data saved in IndexedDB
 
 ## Usage
 
