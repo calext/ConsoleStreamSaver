@@ -36,4 +36,8 @@ controller.destroy();
 
 // Save the recording into a video file
 await saveRecordingAsVideoFile(videoID);
+
+
+// after saving the video file, you can go ahead to delete the streams saved in IndexedDB
+await deleteRecording(videoID);
 ```
