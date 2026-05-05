@@ -230,6 +230,52 @@ function maintainVideoPlaybackPermanence(video){
 }
 
 /**
+ * 
+ * @param {String} id 
+ * @param {String} [filename=null] - You can set a filename, else, the id becomes the filename
+ * @returns {Boolean}
+ */
+async function saveRecordingAsVideoFile(id, filename = null) {
+  const record = await getRecording(id);
+
+  if (!record) {
+    console.log("No recording found");
+    return false;
+  }
+
+  let videoBlob = null;
+
+  if (record.blob instanceof Blob) {
+    videoBlob = record.blob;
+  } else if (Array.isArray(record.chunks) && record.chunks.length > 0) {
+    videoBlob = new Blob(record.chunks, {
+      type: record.mimeType || "video/webm"
+    });
+  } else {
+    console.log("No video data found in record");
+    return false;
+  }
+
+  const extension = (videoBlob.type && videoBlob.type.includes("webm")) ? "webm" : "webm";
+  const safeFilename = filename || `${id}.${extension}`;
+
+  const url = URL.createObjectURL(videoBlob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = safeFilename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 1000);
+
+  return true;
+}
+
+/**
  * Takes the video element, string id and calls the startSmartListener function to start recording stream
  * stops recording when the video ends
  * 
