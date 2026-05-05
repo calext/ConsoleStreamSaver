@@ -32,4 +32,8 @@ const controller= initialize(video, videoID);
 
 // cleanup when the video reaches the end
 controller.destroy();
+
+
+// Save the recording into a video file
+await saveRecordingAsVideoFile(videoID);
 ```
